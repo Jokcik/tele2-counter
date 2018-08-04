@@ -7,7 +7,6 @@
 
 # dependencies
 /node_modules
-/node_modules/bin
 
 # IDEs and editors
 /.idea
@@ -41,3 +40,4 @@ testem.log
 Thumbs.db
 .idea/
 counter.log
+/node_modules/

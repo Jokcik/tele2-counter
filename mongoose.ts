@@ -7,6 +7,7 @@ const ObjectId = Schema.Types.ObjectId;
 export enum LogType {
   STREAM = "Stream",
   VIDEO = "Video",
+  STREAMER = "Streamer",
 }
 
 const logInfoSchema = new Schema({
@@ -16,9 +17,10 @@ const logInfoSchema = new Schema({
   },
   type: {
     type: String,
-    enum:  ["Stream", "Video"],
+    enum:  ["Stream", "Video", "Streamer"],
     required: true
   },
+  nickname: String,
   count: Number,
   avg: Number
 });
@@ -31,17 +33,12 @@ export class MongoDb {
     return await mongoose.connect('mongodb://localhost:27017/cw-dev',   {useNewUrlParser: true });
   }
 
-  public async getOneLastDate(): Promise<Date> {
-    const videoOne = await this.logInfoModel.findOne({type: LogType.VIDEO}, { date: 1 }).sort({date: "DESC"});
-    const streamOne = await this.logInfoModel.findOne({type: LogType.STREAM}, { date: 1 }).sort({date: "DESC"});
+  public async getOneLastDate(): Promise<any> {
+    const videoObjDate: any = await this.logInfoModel.findOne({type: LogType.VIDEO}, { date: 1 }).sort({date: "DESC"});
+    const streamObjDate: any = await this.logInfoModel.findOne({type: LogType.STREAM}, { date: 1 }).sort({date: "DESC"});
+    const streamerObjDate: any = await this.logInfoModel.findOne({type: LogType.STREAMER}, { date: 1 }).sort({date: "DESC"});
 
-
-    const videoDate = videoOne ? videoOne.toObject().date : {};
-    const streamDate = streamOne ? streamOne.toObject().date : {};
-    
-    console.log(videoDate, streamDate, +videoDate >= streamDate.date ? videoDate : streamDate);
-
-    return +videoDate >= streamDate.date ? videoDate : streamDate;
+    return { video: videoObjDate && videoObjDate.date, stream: streamObjDate && streamObjDate.date, streamer: streamerObjDate && streamerObjDate.date };
   }
 
   public async saveVideos(videos: IData[]) {
@@ -51,6 +48,11 @@ export class MongoDb {
 
   public async saveChannels(channels: IData[]) {
     const log = await this.logInfoModel.insertMany(channels);
+    return log;
+  }
+
+  public async saveStreamers(streamers: IData[]) {
+    const log = await this.logInfoModel.insertMany(streamers);
     return log;
   }
 }

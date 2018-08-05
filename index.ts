@@ -12,24 +12,27 @@ async function start() {
   const lastDate = await db.getOneLastDate();
 
   const logs = parser.log;
-  let result = Utils.transformToVideosAndStreamMinutes(logs, (+lastDate) / 1000);
+  let result = Utils.transformToVideosAndStreamMinutes(logs, lastDate);
   result = Utils.transformFromMinutesToHour(result);
 
-  if (result.streams.length && result.streams.length === 1 && +result.streams[0].date - +lastDate <= 3600 * 1000) {
+  if (result.streams.length && result.streams.length === 1 && +result.streams[0].date - +lastDate.stream <= 3600 * 1000) {
     result.streams = [];
   }
 
 
-  if (result.videos.length && result.videos.length === 1 && +result.videos[0].date - +lastDate <= 3600 * 1000) {
+  if (result.videos.length && result.videos.length === 1 && +result.videos[0].date - +lastDate.video <= 3600 * 1000) {
     result.videos = [];
   }
 
-  console.log(new Date(), result);
+  if (result.streamer.length && result.streamer.length === 1 && +result.streamer[0].date - +lastDate.streamer <= 3600 * 1000) {
+    result.streamer = [];
+  }
+
   await db.saveVideos(result.videos);
   await db.saveChannels(result.streams);
+  await db.saveStreamers(result.streamer);
 
   conn.disconnect();
 }
 
-
-setInterval(() => start(), 3600 * 1000);
+start();

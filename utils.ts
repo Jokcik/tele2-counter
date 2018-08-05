@@ -4,17 +4,21 @@ import {LogType} from './mongoose';
 export interface IData {
   date: Date;
   count: number;
-  avg: number;
-
   type: LogType;
+
+  avg?: number;
+  nickname?: string;
 }
 
 export interface IResultData {
   videos: IData[];
   streams: IData[];
+  streamer: IData[];
 }
 
 export class Utils {
+  private static readonly msecNewViewers = 5 * 60; // считаем, что через 5 минут новый просмотр
+
   public static getSumValue(obj: Object) {
     const keys = Object.keys(obj);
     const value = +keys.reduce((previousValue, currentValue) => previousValue + obj[currentValue], 0);
@@ -25,8 +29,9 @@ export class Utils {
   public static transformFromMinutesToHour(data: IResultData): IResultData {
     const resultStream: IData[] = [];
     const resultVideo: IData[] = [];
+    const resultStreamer: IData[] = [];
     const oneHour = 60 * 60 * 1000;
-    console.log(data);
+
     let lastDate = 0;
     let count = 0;
     let avg = 0;
@@ -44,6 +49,7 @@ export class Utils {
 
     lastDate = 0;
     count = 0;
+    avg = 0;
     for (let value of data.videos) {
       if (+value.date - oneHour > lastDate && count && avg) {
         resultVideo.push({ date: value.date, count, avg, type: LogType.VIDEO });
@@ -56,59 +62,135 @@ export class Utils {
       avg += value.avg;
     }
 
-    return { videos: resultVideo, streams: resultStream };
-  }
-
-  public static transformToVideosAndStreamMinutes(logs: IParseLog[], startDate?: number): IResultData {
-    const resultStream: IData[] = [];
-    const resultVideo: IData[] = [];
-
-    console.log(startDate);
-    let lastDate = startDate || 0;
-    let lastStreamUsers: Object = {}; let lastNicknameStreamer = {};
-    let lastVideoUsers: Object = {}; let lastNicknameVideo = {};
-    const msec1Min = 5 * 60; // счиитаем, что 1 просмотр в 5 минут
-
-    let i = 0;
-    console.log('ALL', logs.length);
-    for (let log of logs) {
-      i += 1;
-      // console.log(i, log.msec, log.msec - msec1Min, lastDate, log.msec - msec1Min >= lastDate);
-      if (log.msec - msec1Min > lastDate) {
-        lastDate = log.msec;
-        const [countStream] = Utils.getSumValue(lastStreamUsers); const streamUsers = Object.keys(lastNicknameStreamer).length;
-        const [countVideo] = Utils.getSumValue(lastVideoUsers); const videoUsers = Object.keys(lastNicknameVideo).length;
-
-        if (countStream) {
-          resultStream.push({ date: new Date(lastDate * 1000), count: countStream, avg: Math.round(countStream / streamUsers), type: LogType.STREAM });
-          lastStreamUsers = {};
-          lastNicknameStreamer = {};
-        }
-
-        if (countVideo) {
-          resultVideo.push({ date: new Date(lastDate * 1000), count: countVideo, avg: Math.round(countVideo / videoUsers), type: LogType.VIDEO  });
-          lastVideoUsers = {};
-          lastNicknameVideo = {};
-        }
+    lastDate = 0;
+    count = 0;
+    for (let value of data.streamer) {
+      if (+value.date - oneHour > lastDate && count ) {
+        resultStreamer.push({ date: value.date, count, type: LogType.STREAMER, nickname: value.nickname });
+        count = 0;
+        lastDate = +value.date;
       }
 
-      if (log.argUrl.startsWith('/stream/')) {
-        let value = log.argUrl.split("/")[2];
-        lastStreamUsers[log.argUser] = lastStreamUsers[log.argUser] || 0;
-        lastStreamUsers[log.argUser] = 1;
-        lastNicknameStreamer[value] = 1;
-      }
-
-      if (log.argUrl.startsWith('/videos/')) {
-        let value = log.argUrl.split("/")[2];
-        lastVideoUsers[log.argUser] = lastVideoUsers[log.argUser] || 0;
-        lastVideoUsers[log.argUser] = 1;
-        lastNicknameVideo[value] = 1;
-      }
+      count += value.count;
     }
 
-    console.log(lastStreamUsers, lastVideoUsers);
+    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer };
+  }
 
-    return { videos: resultVideo, streams: resultStream };
+  public static transformToVideosAndStreamMinutes(logs: IParseLog[], startDate?: any): IResultData {
+    let resultStream: IData[];
+    let resultVideo: IData[];
+    let resultStreamer: IData[];
+
+    let lastDateVideo = (+startDate.video / 1000) || 0;
+    let lastDateStream = (+startDate.stream / 1000) || 0;
+    let lastDateStreamer = (+startDate.streamer / 1000) || 0;
+
+    resultStream = this.getStream(logs, lastDateStream);
+    resultVideo = this.getVideo(logs, lastDateVideo);
+    resultStreamer = this.getStreamer(logs, lastDateStreamer);
+
+    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer };
+  }
+
+  private static getArgName(log: IParseLog, url: string) {
+    if (!log.argUrl.startsWith(url)) { return null; }
+    return log.argUrl.split("/")[2];
+  }
+
+  private static getStreamer(logs: IParseLog[], lastDate: number) {
+    const result: IData[] = [];
+    const patternStreamer = "/stream/";
+
+    let nicknameUsers = {};
+
+    for (let log of logs) {
+      if (log.msec - Utils.msecNewViewers > lastDate) {
+        const streamUsers = Object.keys(nicknameUsers).length;
+
+        lastDate = log.msec;
+        const date = new Date(lastDate * 1000);
+
+        if (streamUsers) {
+          Object.keys(nicknameUsers).forEach(key => {
+            result.push({ date, count:  nicknameUsers[key], type: LogType.STREAMER, nickname: key })
+          });
+
+          nicknameUsers = {};
+        }
+      }
+
+      const nickname = this.getArgName(log, patternStreamer);
+      if (!nickname) { continue; }
+
+      nicknameUsers[nickname] = (nicknameUsers[nickname] || 0) + 1;
+    }
+
+    return result;
+  }
+
+  private static getVideo(logs: IParseLog[], lastDate: number) {
+    const result: IData[] = [];
+    const patternVideo = "/videos/";
+
+    let viewerUsers: Object = {};
+    let videoIds = {};
+
+    for (let log of logs) {
+      if (log.msec - Utils.msecNewViewers > lastDate) {
+        const countVideo = Object.keys(viewerUsers).length;
+        const videoUsers = Object.keys(videoIds).length;
+
+        lastDate = log.msec;
+        const date = new Date(lastDate * 1000);
+
+        if (countVideo) {
+          result.push({ date, count: countVideo, avg: Math.round(countVideo / videoUsers), type: LogType.VIDEO  });
+          viewerUsers = {};
+          videoIds = {};
+        }
+      }
+
+      const id = this.getArgName(log, patternVideo);
+      if (!id) { continue; }
+
+      viewerUsers[log.argUser] = (viewerUsers[log.argUser] || 0) + 1;
+      videoIds[id] = (videoIds[id] || 0) + 1;
+    }
+
+    return result;
+  }
+
+  private static getStream(logs: IParseLog[], lastDate: number) {
+    const result: IData[] = [];
+    const patternStream = "/stream/";
+
+    let viewerUsers: Object = {};
+    let nicknameUsers = {};
+
+    for (let log of logs) {
+      if (log.msec - Utils.msecNewViewers > lastDate) {
+        const countStream = Object.keys(viewerUsers).length;
+        const streamUsers = Object.keys(nicknameUsers).length;
+
+        lastDate = log.msec;
+        const date = new Date(lastDate * 1000);
+
+        if (countStream) {
+          result.push({ date, count: countStream, avg: Math.round(countStream / streamUsers), type: LogType.STREAM });
+
+          viewerUsers = {};
+          nicknameUsers = {};
+        }
+      }
+
+      const nickname = this.getArgName(log, patternStream);
+      if (!nickname) { continue; }
+
+      viewerUsers[log.argUser] = (viewerUsers[log.argUser] || 0) + 1;
+      nicknameUsers[nickname] = (nicknameUsers[nickname] || 0) + 1;
+    }
+
+    return result;
   }
 }

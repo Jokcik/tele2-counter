@@ -65,9 +65,16 @@ export class Utils {
       avg += value.avg;
     }
 
+    let array = data.streamer.sort((a, b) => a.nickname.localeCompare(b.nickname) || (+a.date - +b.date));
+    let lastUser = array[0] ? array[0].user : 0;
     lastDate = 0;
     count = 0;
-    for (let value of data.streamer) {
+    for (let value of array) {
+      if (value.nickname != lastUser) {
+        lastDate = +value.date;
+      }
+
+      lastUser = value.nickname;
       if (+value.date - oneHour > lastDate && count ) {
         resultStreamer.push({ date: value.date, count, type: LogType.STREAMER, nickname: value.nickname });
         count = 0;
@@ -77,10 +84,10 @@ export class Utils {
       count += value.count;
     }
 
-    const array = data.users.sort((a, b) => a.user.localeCompare(b.user) || (+a.date - +b.date));
+    array = data.users.sort((a, b) => a.user.localeCompare(b.user) || (+a.date - +b.date));
     lastDate = 0;
     count = 0;
-    let lastUser = array[0] ? array[0].user : 0;
+    lastUser = array[0] ? array[0].user : 0;
     for (let value of array) {
       if (value.user != lastUser) {
         lastDate = +value.date;

@@ -7,7 +7,7 @@ async function start() {
   parser.parse();
 
   const db = new MongoDb();
-  await db.connect();
+  const conn = await db.connect();
 
   const lastDate = await db.getOneLastDate();
 
@@ -27,6 +27,8 @@ async function start() {
   console.log(new Date(), result);
   await db.saveVideos(result.videos);
   await db.saveChannels(result.streams);
+
+  conn.disconnect();
 }
 
 

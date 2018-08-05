@@ -41,3 +41,6 @@ Thumbs.db
 .idea/
 counter.log
 /node_modules/
+/sdf
+/counter.log.1
+/counter (1).log

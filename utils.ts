@@ -77,9 +77,16 @@ export class Utils {
       count += value.count;
     }
 
+    const array = data.users.sort((a, b) => a.user.localeCompare(b.user) || (+a.date - +b.date));
     lastDate = 0;
     count = 0;
-    for (let value of data.users) {
+    let lastUser = array[0] ? array[0].user : 0;
+    for (let value of array) {
+      if (value.user != lastUser) {
+        lastDate = +value.date;
+      }
+
+      lastUser = value.user;
       if (+value.date - oneHour > lastDate && count ) {
         resultUsers.push({ date: value.date, count, type: LogType.USERS, user: value.user });
         count = 0;

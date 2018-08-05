@@ -2,7 +2,7 @@
   "name": "typescript_nodejs",
   "version": "1.0.0",
   "scripts": {
-    "start": "nodemon index.ts"
+    "start": "ts-node index.ts"
   },
   "dependencies": {
     "@types/mongoose": "^5.2.3",

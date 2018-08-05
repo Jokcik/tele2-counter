@@ -8,10 +8,12 @@ export interface IData {
 
   avg?: number;
   nickname?: string;
+  user?: string;
 }
 
 export interface IResultData {
   videos: IData[];
+  users: IData[];
   streams: IData[];
   streamer: IData[];
 }
@@ -30,6 +32,7 @@ export class Utils {
     const resultStream: IData[] = [];
     const resultVideo: IData[] = [];
     const resultStreamer: IData[] = [];
+    const resultUsers: IData[] = [];
     const oneHour = 60 * 60 * 1000;
 
     let lastDate = 0;
@@ -74,23 +77,38 @@ export class Utils {
       count += value.count;
     }
 
-    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer };
+    lastDate = 0;
+    count = 0;
+    for (let value of data.users) {
+      if (+value.date - oneHour > lastDate && count ) {
+        resultUsers.push({ date: value.date, count, type: LogType.USERS, user: value.user });
+        count = 0;
+        lastDate = +value.date;
+      }
+
+      count += value.count;
+    }
+
+    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer, users: resultUsers };
   }
 
   public static transformToVideosAndStreamMinutes(logs: IParseLog[], startDate?: any): IResultData {
     let resultStream: IData[];
     let resultVideo: IData[];
     let resultStreamer: IData[];
+    let resultUsers: IData[];
 
     let lastDateVideo = (+startDate.video / 1000) || 0;
     let lastDateStream = (+startDate.stream / 1000) || 0;
     let lastDateStreamer = (+startDate.streamer / 1000) || 0;
+    let lastDateUsers = (+startDate.users / 1000) || 0;
 
     resultStream = this.getStream(logs, lastDateStream);
     resultVideo = this.getVideo(logs, lastDateVideo);
     resultStreamer = this.getStreamer(logs, lastDateStreamer);
+    resultUsers = this.getUsers(logs, lastDateUsers);
 
-    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer };
+    return { videos: resultVideo, streams: resultStream, streamer: resultStreamer, users: resultUsers };
   }
 
   private static getArgName(log: IParseLog, url: string) {
@@ -124,6 +142,34 @@ export class Utils {
       if (!nickname) { continue; }
 
       nicknameUsers[nickname] = (nicknameUsers[nickname] || 0) + 1;
+    }
+
+    return result;
+  }
+
+  private static getUsers(logs: IParseLog[], lastDate: number) {
+    const result: IData[] = [];
+
+    let activeUsers: Object = {};
+
+    for (let log of logs) {
+      if (log.msec - Utils.msecNewViewers > lastDate) {
+        const countUsers = Object.keys(activeUsers).length;
+
+        lastDate = log.msec;
+        const date = new Date(lastDate * 1000);
+
+        if (countUsers) {
+          Object.keys(activeUsers).forEach(key => {
+            result.push({ date, count: activeUsers[key], type: LogType.USERS, user: key });
+          });
+          activeUsers = {};
+        }
+      }
+
+      if (!!parseInt(log.argUser)) {
+        activeUsers[log.argUser] = (activeUsers[log.argUser] || 0) + 1;
+      }
     }
 
     return result;

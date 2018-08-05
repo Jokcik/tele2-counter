@@ -19,7 +19,6 @@ async function start() {
     result.streams = [];
   }
 
-
   if (result.videos.length && result.videos.length === 1 && +result.videos[0].date - +lastDate.video <= 3600 * 1000) {
     result.videos = [];
   }
@@ -28,9 +27,14 @@ async function start() {
     result.streamer = [];
   }
 
+  if (result.users.length && result.users.length === 1 && +result.users[0].date - +lastDate.users <= 3600 * 1000) {
+    result.users = [];
+  }
+
   await db.saveVideos(result.videos);
   await db.saveChannels(result.streams);
   await db.saveStreamers(result.streamer);
+  await db.saveUsers(result.users);
 
   conn.disconnect();
 }

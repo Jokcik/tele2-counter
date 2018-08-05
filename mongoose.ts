@@ -7,6 +7,7 @@ const ObjectId = Schema.Types.ObjectId;
 export enum LogType {
   STREAM = "Stream",
   VIDEO = "Video",
+  USERS = "Users",
   STREAMER = "Streamer",
 }
 
@@ -17,9 +18,10 @@ const logInfoSchema = new Schema({
   },
   type: {
     type: String,
-    enum:  ["Stream", "Video", "Streamer"],
+    enum:  ["Stream", "Video", "Streamer", "Users"],
     required: true
   },
+  user: ObjectId,
   nickname: String,
   count: Number,
   avg: Number
@@ -37,8 +39,14 @@ export class MongoDb {
     const videoObjDate: any = await this.logInfoModel.findOne({type: LogType.VIDEO}, { date: 1 }).sort({date: "DESC"});
     const streamObjDate: any = await this.logInfoModel.findOne({type: LogType.STREAM}, { date: 1 }).sort({date: "DESC"});
     const streamerObjDate: any = await this.logInfoModel.findOne({type: LogType.STREAMER}, { date: 1 }).sort({date: "DESC"});
+    const usersObjDate: any = await this.logInfoModel.findOne({type: LogType.USERS}, { date: 1 }).sort({date: "DESC"});
 
-    return { video: videoObjDate && videoObjDate.date, stream: streamObjDate && streamObjDate.date, streamer: streamerObjDate && streamerObjDate.date };
+    return {
+      video: videoObjDate && videoObjDate.date,
+      users: usersObjDate && usersObjDate.date,
+      stream: streamObjDate && streamObjDate.date,
+      streamer: streamerObjDate && streamerObjDate.date,
+    };
   }
 
   public async saveVideos(videos: IData[]) {
@@ -53,6 +61,11 @@ export class MongoDb {
 
   public async saveStreamers(streamers: IData[]) {
     const log = await this.logInfoModel.insertMany(streamers);
+    return log;
+  }
+
+  public async saveUsers(users: IData[]) {
+    const log = await this.logInfoModel.insertMany(users);
     return log;
   }
 }

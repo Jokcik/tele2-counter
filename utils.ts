@@ -135,7 +135,7 @@ export class Utils {
     const patternStreamer = "/stream/";
 
     let nicknameUsers = {};
-    logs = logs.filter(log => log.msec);
+    logs = logs.filter(log => log.msec > lastDate);
 
     for (let log of logs) {
       if (log.msec - Utils.msecNewViewers > lastDate) {
@@ -166,7 +166,7 @@ export class Utils {
     const result: IData[] = [];
 
     let activeUsers: Object = {};
-    logs = logs.filter(log => log.msec);
+    logs = logs.filter(log => log.msec > lastDate);
 
     for (let log of logs) {
       if (log.msec - Utils.msecNewViewers > lastDate) {
@@ -197,7 +197,7 @@ export class Utils {
 
     let viewerUsers: Object = {};
     let videoIds = {};
-    logs = logs.filter(log => log.msec);
+    logs = logs.filter(log => log.msec > lastDate);
 
     for (let log of logs) {
       if (log.msec - Utils.msecNewViewers > lastDate) {
@@ -230,7 +230,7 @@ export class Utils {
 
     let viewerUsers: Object = {};
     let nicknameUsers = {};
-    logs = logs.filter(log => log.msec);
+    logs = logs.filter(log => log.msec > lastDate);
 
     for (let log of logs) {
       if (log.msec - Utils.msecNewViewers > lastDate) {
